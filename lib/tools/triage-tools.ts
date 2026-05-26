@@ -118,6 +118,56 @@ export const assessFraudRisk = tool({
   },
 });
 
+export const verifyDamageEvidence = tool({
+  description:
+    "Verify a damage claim against the customer's attached photo. Call this ONLY when the customer has actually attached an image to the message. Use your own vision to describe the photo, then fill the structured assessment. If the photo does NOT match the verbal complaint (e.g. customer claims torn cushion, photo shows pristine sofa), set matchesComplaint=false and damageVisible=false — this is a critical fraud signal.",
+  inputSchema: z.object({
+    photoSummary: z
+      .string()
+      .describe(
+        "1-2 sentences describing what you see in the photo (object, condition, defects).",
+      ),
+    damageVisible: z
+      .boolean()
+      .describe("Is physical damage actually visible in the photo?"),
+    severity: z
+      .enum(["NONE", "MINOR", "MODERATE", "SEVERE"])
+      .describe("Severity of damage visible in the photo."),
+    matchesComplaint: z
+      .boolean()
+      .describe(
+        "Does the visual damage in the photo match what the customer described in text?",
+      ),
+    confidence: z
+      .number()
+      .min(0)
+      .max(1)
+      .describe("Confidence that this photo assessment is correct, 0-1."),
+  }),
+  execute: async ({
+    photoSummary,
+    damageVisible,
+    severity,
+    matchesComplaint,
+    confidence,
+  }) => {
+    return {
+      photoSummary,
+      damageVisible,
+      severity,
+      matchesComplaint,
+      confidence,
+      verdict:
+        damageVisible && matchesComplaint
+          ? "PHOTO_CONFIRMS_COMPLAINT"
+          : !damageVisible
+            ? "NO_DAMAGE_VISIBLE"
+            : "PHOTO_MISMATCH_COMPLAINT",
+      verifiedAt: new Date().toISOString(),
+    };
+  },
+});
+
 export const decideResolution = tool({
   description:
     "Record the final triage decision: action (APPROVE_REFUND | APPROVE_REPLACEMENT | ESCALATE_TO_HUMAN | DENY), refund amount in USD, reasoning, and confidence 0-1. ALWAYS call this LAST after lookupOrder, getCustomerHistory, getReturnsPolicy, and assessFraudRisk.",
@@ -203,6 +253,7 @@ export const triageTools = {
   getCustomerHistory,
   getReturnsPolicy,
   assessFraudRisk,
+  verifyDamageEvidence,
   decideResolution,
   draftCustomerReply,
 };

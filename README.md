@@ -3,7 +3,9 @@
 > **Boston Tech Week · Beat-The-Clock Agent Hack · Track 3 — FinOps & Customer Service**
 > Built on **Subconscious TIM-Qwen3.6** + Vercel AI SDK + Next.js.
 
-A returns-triage agent that reads a customer's complaint email, looks up the order, checks Wayfair's return policy, scores the customer for return-abuse fraud risk, decides the resolution, and drafts the customer-facing reply — in one autonomous loop, with every tool call visible in the UI.
+A returns-triage agent that reads a customer's complaint, **looks at the damage photo they attached**, checks Wayfair's return policy, scores the customer for return-abuse fraud risk, decides the resolution, and drafts the customer-facing reply — in one autonomous loop, with every tool call visible in the UI.
+
+**The differentiator:** the agent doesn't trust customers on words alone. If the complaint says "torn cushion" but the photo shows a pristine sofa, the agent flags the mismatch and escalates instead of issuing the refund. Multimodal verification via Subconscious's vision capability.
 
 ## Why this matters
 
@@ -12,24 +14,28 @@ Wayfair runs ~$12B in revenue and serves ~22M customers a year. Returns are the 
 ## What the agent does (autonomously)
 
 ```
-Customer complaint  ─►  lookupOrder        ─►  getCustomerHistory
-                    ─►  getReturnsPolicy   ─►  assessFraudRisk
-                    ─►  decideResolution   ─►  draftCustomerReply
+Customer complaint  ─►  lookupOrder           ─►  getCustomerHistory
++ damage photo      ─►  getReturnsPolicy      ─►  assessFraudRisk
+                    ─►  verifyDamageEvidence  (multimodal — looks at the photo)
+                    ─►  decideResolution      ─►  draftCustomerReply
                     ─►  Operator summary (decision + dollar + reply)
 ```
 
-Six tools. One loop. Every step streams into the UI so a Wayfair specialist can audit the reasoning before sending.
+Seven tools. One loop. Every step streams into the UI so a Wayfair specialist can audit the reasoning before sending.
 
-## The four demo scenarios
+## The five demo scenarios
 
 | Scenario | Expected outcome |
 |---|---|
-| **WF-88421** — Damaged velvet sofa, delivered 4 days ago, customer has photos | `APPROVE_REFUND` — $1,289, low fraud |
-| **WF-77310** — Bent chandelier arm, ordered 85 days ago, no insurance | `DENY` (or `ESCALATE`) — outside window, cosmetic |
-| **WF-90222** — Mattress refund demand, 12-day-old account, 4 refunds in 90d, prior chargeback | `ESCALATE_TO_HUMAN` — fraud risk HIGH |
+| **WF-88421** — Damaged velvet sofa + photo confirming damage | `APPROVE_REFUND` — $1,289 |
+| **WF-88421 (mismatch)** — Same complaint but attached photo shows pristine sofa | `ESCALATE_TO_HUMAN` — photo doesn't match words |
+| **WF-77310** — Bent chandelier arm, ordered 85 days ago, no insurance | `DENY` / `ESCALATE` — outside window, cosmetic |
+| **WF-90222** — Mattress refund demand, 12-day-old account, 4 refunds in 90d, chargeback | `ESCALATE_TO_HUMAN` — fraud risk HIGH |
 | **WF-65109** — Standing desk wobbles above 38" | `APPROVE_REPLACEMENT` — functional defect, in-window |
 
-The fraud-risk scorer is the differentiator: most return chatbots will rubber-stamp any complaint that sounds reasonable. This one **catches the serial returner** even when the complaint is well-written.
+Two differentiators vs. a naive return chatbot:
+1. **Fraud-risk scorer** catches the serial returner with a clean-looking complaint.
+2. **Multimodal damage verification** catches the dishonest customer whose words say "destroyed" but whose photo shows nothing wrong.
 
 ## Stack
 
@@ -54,7 +60,7 @@ Open http://localhost:3000, click any scenario card, watch the agent work.
 | File | What it is |
 |---|---|
 | `lib/data/mock-data.ts` | Orders, customers, returns policy, demo scenarios |
-| `lib/tools/triage-tools.ts` | Six agent tools: lookupOrder, getCustomerHistory, getReturnsPolicy, assessFraudRisk, decideResolution, draftCustomerReply |
+| `lib/tools/triage-tools.ts` | Seven agent tools: lookupOrder, getCustomerHistory, getReturnsPolicy, assessFraudRisk, **verifyDamageEvidence** (multimodal), decideResolution, draftCustomerReply |
 | `lib/agents/index.ts` | System prompt + ToolLoopAgent setup |
 | `app/api/chat/route.ts` | Streaming API endpoint |
 | `components/chat-app.tsx` | UI with scenario cards + tool-call transparency |

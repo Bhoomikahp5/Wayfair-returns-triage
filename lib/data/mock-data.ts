@@ -149,12 +149,32 @@ export const RETURNS_POLICY = {
   ],
 };
 
-export const DEMO_SCENARIOS = [
+export type DemoScenario = {
+  title: string;
+  orderId: string;
+  complaint: string;
+  photoUrl?: string;
+  photoLabel?: string;
+};
+
+export const DEMO_SCENARIOS: DemoScenario[] = [
   {
-    title: "Damaged Velvet Sofa (clear refund)",
+    title: "Sofa + damage photo (clear refund)",
     orderId: "WF-88421",
     complaint:
-      "Hi, my green velvet sofa arrived yesterday with a torn cushion and a deep scratch on the right arm. The delivery guys were in a rush. I have photos. This was supposed to be a gift for my mom — I am really upset. Can you refund this?",
+      "Hi, my green velvet sofa arrived yesterday with a torn cushion and a deep scratch on the right arm. The delivery guys were in a rush. I have photos attached. This was supposed to be a gift for my mom — I am really upset. Can you refund this?",
+    photoUrl:
+      "https://placehold.co/600x400/8b0000/ffffff/png?text=Green+Velvet+Sofa%0ATorn+Cushion+VISIBLE%0AArm+Scratched",
+    photoLabel: "damage photo",
+  },
+  {
+    title: "Sofa + photo MISMATCH (fraud catch)",
+    orderId: "WF-88421",
+    complaint:
+      "My green velvet sofa is destroyed — torn cushion, big scratch, ruined. I want a full refund right now. Photos attached as proof.",
+    photoUrl:
+      "https://placehold.co/600x400/0d4f1c/ffffff/png?text=Green+Velvet+Sofa%0APristine+Condition%0ANo+Damage+Visible",
+    photoLabel: "pristine photo",
   },
   {
     title: "Late lighting complaint (out of window)",
