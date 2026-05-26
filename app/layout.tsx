@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Hackathon Starter — Subconscious Agents",
+  title: "Wayfair Returns Triage Agent",
   description:
-    "Chat and long-running agents powered by Subconscious, Vercel AI SDK, Baseten, and Cloudflare.",
+    "Agent that triages customer return complaints, checks policy, scores fraud risk, and drafts replies. Built on Subconscious TIM-Qwen3.6.",
 };
 
 export default function RootLayout({

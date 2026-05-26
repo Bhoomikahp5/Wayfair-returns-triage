@@ -1,170 +1,72 @@
-# Wayfair × Subconscious Hackathon Starter
+# Wayfair Returns Triage Agent
 
-Build AI agents on **Subconscious** (TIM-Qwen3.6) with the **Vercel AI SDK**. This repo gives you a working chat UI, long-running agent mode, example tools, and an MCP template — so you can focus on your track, not boilerplate.
+> **Boston Tech Week · Beat-The-Clock Agent Hack · Track 3 — FinOps & Customer Service**
+> Built on **Subconscious TIM-Qwen3.6** + Vercel AI SDK + Next.js.
 
-**Sponsors:** Wayfair · Subconscious · Baseten · Cloudflare
+A returns-triage agent that reads a customer's complaint email, looks up the order, checks Wayfair's return policy, scores the customer for return-abuse fraud risk, decides the resolution, and drafts the customer-facing reply — in one autonomous loop, with every tool call visible in the UI.
 
----
+## Why this matters
 
-## Pick your track
+Wayfair runs ~$12B in revenue and serves ~22M customers a year. Returns are the single largest cost center in furniture e-commerce: large items, freight, damage claims, and a long tail of "is this fraud or a legit complaint?" decisions that today need a human specialist. This agent handles the obvious ~70% — and **escalates the rest** — so specialists only see the cases that actually need judgment.
 
-Choose one challenge. Your agent should use tools (APIs, MCP, functions) and talk to users through the built-in UI.
+## What the agent does (autonomously)
 
-### Track 1 — Consumer Shopping Experience
+```
+Customer complaint  ─►  lookupOrder        ─►  getCustomerHistory
+                    ─►  getReturnsPolicy   ─►  assessFraudRisk
+                    ─►  decideResolution   ─►  draftCustomerReply
+                    ─►  Operator summary (decision + dollar + reply)
+```
 
-Millions of customers shop for furniture on Wayfair every day.
+Six tools. One loop. Every step streams into the UI so a Wayfair specialist can audit the reasoning before sending.
 
-**Challenge:** Build an agent that improves discovery and the buyer experience.
+## The four demo scenarios
 
-**Ideas to explore:**
-- Style or room-based product recommendations
-- “Help me furnish this room” from a photo or description
-- Compare options, explain tradeoffs, answer sizing questions
-- Guided search instead of endless filters
+| Scenario | Expected outcome |
+|---|---|
+| **WF-88421** — Damaged velvet sofa, delivered 4 days ago, customer has photos | `APPROVE_REFUND` — $1,289, low fraud |
+| **WF-77310** — Bent chandelier arm, ordered 85 days ago, no insurance | `DENY` (or `ESCALATE`) — outside window, cosmetic |
+| **WF-90222** — Mattress refund demand, 12-day-old account, 4 refunds in 90d, prior chargeback | `ESCALATE_TO_HUMAN` — fraud risk HIGH |
+| **WF-65109** — Standing desk wobbles above 38" | `APPROVE_REPLACEMENT` — functional defect, in-window |
 
-### Track 2 — Supply Chain
+The fraud-risk scorer is the differentiator: most return chatbots will rubber-stamp any complaint that sounds reasonable. This one **catches the serial returner** even when the complaint is well-written.
 
-Wayfair and its supplier network move huge volumes of furniture worldwide.
+## Stack
 
-**Challenge:** Build an agent that improves Wayfair’s ability to manage its supply chain.
+- **Subconscious TIM-Qwen3.6-27b** — agent reasoning + tool calls (OpenAI-compatible API)
+- **Vercel AI SDK `ToolLoopAgent`** — multi-step tool loop, streaming UI
+- **Next.js 16** — App Router, React Server Components, Tailwind
+- **Mock data layer** — `lib/data/mock-data.ts` holds 4 orders, 4 customer histories, full returns policy. Swap for SQL/order-API at production.
 
-**Ideas to explore:**
-- Track shipments, flag delays, summarize status
-- Answer “where is order X?” or “what’s at risk this week?”
-- Coordinate supplier updates, inventory, or routing decisions
-- Turn messy ops data into clear next steps
-
-### Track 3 — FinOps & Customer Service
-
-Wayfair runs ~$12B in revenue and serves ~22M customers a year.
-
-**Challenge:** Build an agent system that improves internal operations — financial operations or customer service.
-
-**Ideas to explore:**
-- Triage support tickets and draft responses
-- Look up order/billing history and explain charges
-- Summarize finance or ops metrics for a team
-- Route issues to the right team with context
-
----
-
-## Quick start
-
-**1. Get a Subconscious API key**
-
-Sign up at [subconscious.dev/platform](https://www.subconscious.dev/platform) and copy your key (`sky_...`).
-
-**2. Create a .env.local file with your Subconscious API key**
+## Run it
 
 ```bash
-pnpm install
-cp .env.example .env.local
-# Set SUBCONSCIOUS_API_KEY in .env.local
+npm install
+cp .env.local.example .env.local
+# put your SUBCONSCIOUS_API_KEY in .env.local
+npm run dev
 ```
 
-**3. Run the app**
+Open http://localhost:3000, click any scenario card, watch the agent work.
 
-```bash
-pnpm dev
-```
+## Files that matter
 
-Open [http://localhost:3000](http://localhost:3000).
+| File | What it is |
+|---|---|
+| `lib/data/mock-data.ts` | Orders, customers, returns policy, demo scenarios |
+| `lib/tools/triage-tools.ts` | Six agent tools: lookupOrder, getCustomerHistory, getReturnsPolicy, assessFraudRisk, decideResolution, draftCustomerReply |
+| `lib/agents/index.ts` | System prompt + ToolLoopAgent setup |
+| `app/api/chat/route.ts` | Streaming API endpoint |
+| `components/chat-app.tsx` | UI with scenario cards + tool-call transparency |
 
-**4. Try the two modes**
+## How to extend (the 10-min upgrade path)
 
-- **Chat** — fast Q&A with demo tools (good for prototyping UX)
-- **Agent** — multi-step runs with search, long tasks, and MCP stubs (good for track demos)
+- Swap `mock-data.ts` for a real Wayfair OMS query
+- Add a `notifyCustomer` tool that actually sends the drafted email (SendGrid)
+- Add a `pickupSchedule` tool for large-furniture freight returns
+- Plug in a **Reducto** tool to OCR damage photos and verify the customer's claim
+- Move the agent to a **Cloudflare Workers** edge runtime for sub-200ms latency
 
-Use **Image** to attach a photo (e.g. a photo of a room or box).
+## Credits
 
----
-
-## How to build on this repo
-
-You mostly edit three places:
-
-| What | Where |
-|------|--------|
-| Tools (APIs, data, actions) | `lib/tools/index.ts` |
-| Agent behavior & prompts | `lib/agents/index.ts` |
-| MCP integrations | `lib/tools/mcp-tools.ts` |
-
-### Add a tool
-
-Tools are functions your agent can call. Example:
-
-```typescript
-// lib/tools/index.ts
-export const searchProducts = tool({
-  description: "Search furniture by style, room, or keyword",
-  inputSchema: z.object({ query: z.string() }),
-  execute: async ({ query }) => {
-    // Call your API, mock data, or Cloudflare Worker
-    return { results: [] };
-  },
-});
-```
-
-Add it to `agentTools` in the same file, then customize the prompt in `lib/agents/index.ts` for your track.
-
-### Connect MCP
-
-MCP servers expose tools (files, APIs, databases). Wrap them as AI SDK tools — see `lib/tools/mcp-tools.ts`.
-
-```bash
-pnpm add @modelcontextprotocol/sdk
-```
-
-### Images (multimodal)
-
-The UI sends images as data URLs. Useful for room photos, screenshots, or docs. Details: `.agents/skills/subconscious-dev/references/multimodal.md`.
-
-### Long-running agents
-
-**Agent** mode runs up to 30 tool steps (`lib/agents/index.ts`). The API allows 5-minute runs (`app/api/chat/route.ts`). Increase either if your demo needs it.
-
----
-
-## What’s included
-
-- **Subconscious provider** — `lib/subconscious.ts`
-- **Chat + research agents** — `lib/agents/index.ts`
-- **Example tools** — weather, calculator, web search stub, long task
-- **Streaming API** — `app/api/chat/route.ts`
-- **Chat UI** — `components/chat-app.tsx`
-- **Subconscious API skill** — `.agents/skills/subconscious-dev/` (for Cursor/Codex)
-
-Re-install the skill anytime:
-
-```bash
-npx skills add https://github.com/subconscious-systems/skills --skill subconscious-dev
-```
-
----
-
-## Environment
-
-| Variable | Required |
-|----------|----------|
-| `SUBCONSCIOUS_API_KEY` | Yes — [get one here](https://www.subconscious.dev/platform) |
-
----
-
-## Deploy
-
-Set `SUBCONSCIOUS_API_KEY` on your host, then:
-
-```bash
-pnpm build && pnpm start
-```
-
-Works on Vercel, Cloudflare, or any Node host.
-
----
-
-## Links
-
-- [Subconscious Platform](https://www.subconscious.dev/platform) — API keys
-- [Subconscious Docs](https://docs.subconscious.dev)
-- [Vercel AI SDK — Agents](https://ai-sdk.dev/docs/agents/overview)
-- [Subconscious skills repo](https://github.com/subconscious-systems/skills)
+Built solo at the Wayfair × Subconscious × Baseten × Cloudflare hackathon, Boston Tech Week 2026.
